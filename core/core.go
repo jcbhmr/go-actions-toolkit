@@ -15,10 +15,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func ptr[T any](v T) *T {
-	return &v
-}
-
 type InputOptions struct {
 	Required       *bool
 	TrimWhitespace *bool
@@ -193,7 +189,7 @@ func SetCommandEcho(enabled bool) {
 
 func SetFailed(message any) {
 	Error(message, nil)
-	panic("failed")
+	os.Exit(1)
 }
 
 func IsDebug() bool {
@@ -232,12 +228,15 @@ func Error(message any, properties *AnnotationProperties) {
 	commandProperties := ""
 	if properties != nil {
 		commandProperties = annotationPropertiesToCommandPropertiesString(*properties)
+		if commandProperties != "" {
+			commandProperties = " " + commandProperties
+		}
 	}
 	switch message := message.(type) {
 	case string:
-		fmt.Printf("::error %s::%s\n", commandProperties, encodeCommandData(message))
+		fmt.Printf("::error%s::%s\n", commandProperties, encodeCommandData(message))
 	case error:
-		fmt.Printf("::error %s::%s\n", commandProperties, encodeCommandData(message.Error()))
+		fmt.Printf("::error%s::%s\n", commandProperties, encodeCommandData(message.Error()))
 	default:
 		panic("unexpected type")
 	}
@@ -247,12 +246,15 @@ func Warning(message any, properties *AnnotationProperties) {
 	commandProperties := ""
 	if properties != nil {
 		commandProperties = annotationPropertiesToCommandPropertiesString(*properties)
+		if commandProperties != "" {
+			commandProperties = " " + commandProperties
+		}
 	}
 	switch message := message.(type) {
 	case string:
-		fmt.Printf("::warning %s::%s\n", commandProperties, encodeCommandData(message))
+		fmt.Printf("::warning%s::%s\n", commandProperties, encodeCommandData(message))
 	case error:
-		fmt.Printf("::warning %s::%s\n", commandProperties, encodeCommandData(message.Error()))
+		fmt.Printf("::warning%s::%s\n", commandProperties, encodeCommandData(message.Error()))
 	default:
 		panic("unexpected type")
 	}
@@ -262,12 +264,15 @@ func Notice(message any, properties *AnnotationProperties) {
 	commandProperties := ""
 	if properties != nil {
 		commandProperties = annotationPropertiesToCommandPropertiesString(*properties)
+		if commandProperties != "" {
+			commandProperties = " " + commandProperties
+		}
 	}
 	switch message := message.(type) {
 	case string:
-		fmt.Printf("::notice %s::%s\n", commandProperties, encodeCommandData(message))
+		fmt.Printf("::notice%s::%s\n", commandProperties, encodeCommandData(message))
 	case error:
-		fmt.Printf("::notice %s::%s\n", commandProperties, encodeCommandData(message.Error()))
+		fmt.Printf("::notice%s::%s\n", commandProperties, encodeCommandData(message.Error()))
 	default:
 		panic("unexpected type")
 	}
@@ -621,7 +626,7 @@ type platformDetails struct {
 	IsLinux   bool
 }
 
-func getWindowsInfo() (string, string, error) {
+func platformGetWindowsInfo() (string, string, error) {
 	version, err := exec.Command("powershell", "-command", "(Get-CimInstance -ClassName Win32_OperatingSystem).Version").Output()
 	if err != nil {
 		return "", "", err
@@ -635,7 +640,7 @@ func getWindowsInfo() (string, string, error) {
 	return nameStr, versionStr, nil
 }
 
-func getMacOsInfo() (string, string, error) {
+func platformGetMacOsInfo() (string, string, error) {
 	version, err := exec.Command("sw_vers", "-productVersion").Output()
 	if err != nil {
 		return "", "", err
@@ -649,7 +654,7 @@ func getMacOsInfo() (string, string, error) {
 	return nameStr, versionStr, nil
 }
 
-func getLinuxInfo() (string, string, error) {
+func platformGetLinuxInfo() (string, string, error) {
 	name, err := exec.Command("lsb_release", "-is").Output()
 	if err != nil {
 		return "", "", err
@@ -663,16 +668,16 @@ func getLinuxInfo() (string, string, error) {
 	return nameStr, versionStr, nil
 }
 
-func (platform) GetDetails() (platformDetails, error) {
-	name := ""
-	version := ""
+func (p *platform) GetDetails() (platformDetails, error) {
+	var name string
+	var version string
 	var err error
 	if Platform.IsWindows {
-		name, version, err = getWindowsInfo()
+		name, version, err = platformGetWindowsInfo()
 	} else if Platform.IsMacOs {
-		name, version, err = getMacOsInfo()
+		name, version, err = platformGetMacOsInfo()
 	} else if Platform.IsLinux {
-		name, version, err = getLinuxInfo()
+		name, version, err = platformGetLinuxInfo()
 	}
 	if err != nil {
 		return platformDetails{}, err
