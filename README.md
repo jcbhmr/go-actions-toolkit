@@ -26,27 +26,26 @@ name := try1(core.GetInput("name", nil))
 core.Notice(fmt.Sprintf("Hello, %s!", name))
 
 // 🐙🐱
-token := try1(core.GetInput("token", nil));
-client := try1(github.GetGoGithubClient(token, nil));
-let push = match *actions_github::CONTEXT.payload {
-  WebhookPayload::Push(x) => x,
-  _ => actions_core::set_failed!("🤷‍♂️"),
+token := try1(core.GetInput("token", nil))
+client := try1(github.GetGoGithubClient(token, nil))
+if github.Context.EventName != "push" {
+  panic("🤷‍♂️")
 }
-let actor = *actions_github::CONTEXT.actor;
-let repo = payload.repository.full_name;
-println!("{actor} pushed to {repo}");
+actor := github.Context.Actor
+repo := github.Context.Payload["repository"](map[string]any)["fullName"](string)
+fmt.Printf("%s pushed to %s\n", actor, repo)
 
 // 🔨
-let url = "https://example.org/tool.tgz";
-let path = actions_tool_cache::download_tool(url)?;
-let path = actions_tool_cache::extract_tar(path)?;
-println!("{url} extracted to {path}");
+url := "https://example.org/tool.tgz";
+path := try1(tc.DownloadTool(url, nil, nil, nil))
+path = try1(tc.ExtractTar(path, nil, nil))
+fmt.Printf("%s extracted to %s\n", url, path)
 
 // 🍦
-let files = actions_glob::create("**/*.rs")?.glob()?;
-println!("The files are {files:?}");
-let hash = actions_glob::hash_files("*.json")?;
-println!("Config hash is {hash}");
+files := try1(try1(glob.Create("**/*.rs")).Glob());
+fmt.Printf("The files are %v\n", files)
+hash := try1(glob.HashFiles("*.json"));
+fmt.Printf("Config hash is %s\n", hash)
 ```
 
 </table>
