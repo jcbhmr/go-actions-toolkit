@@ -33,7 +33,7 @@ func init() {
 
 func Example() {
 	token := os.Getenv("GITHUB_TOKEN")
-	client := unwrap1(github.GetGoGithub(token))
+	client := unwrap1(github.GetGoGithubClient(token))
 	repo := github.Context.Repo()
 	info, _ := unwrap2(client.Repositories.Get(context.Background(), repo.Owner, repo.Repo))
 	fmt.Printf("info.GetFullName()=%s\n", info.GetFullName())
@@ -43,9 +43,9 @@ func Example() {
 	// info.GetDescription()=🐿️ GitHub Actions toolkit for your Go-based GitHub Actions
 }
 
-func ExampleGetGoGithub() {
+func ExampleGetGoGithubClient() {
 	token := os.Getenv("GITHUB_TOKEN")
-	client := unwrap1(github.GetGoGithub(token))
+	client := unwrap1(github.GetGoGithubClient(token))
 	query := "is:issue repo:nodejs/node is:open Proposal for single-mode packages with optional fallbacks for older versions of node"
 	issues, _ := unwrap2(client.Search.Issues(context.Background(), query, nil))
 	fmt.Printf("issues.GetTotal()=%d\n", issues.GetTotal())

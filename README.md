@@ -14,20 +14,20 @@
 - [ ] [configure-wasmtime-action](https://github.com/jcbhmr/configure-wasmtime-action)
 - [ ] [hello-world-go-action](https://github.com/jcbhmr/hello-world-go-action)
 
-# GitHub Actions Toolkit for Rust
+# GitHub Actions Toolkit for Go
 
-🦀 The unofficial toolkit for developing Rust-based GitHub Actions
+🐿️ GitHub Actions toolkit for your Go-based GitHub Actions
 
 <table align=center><td>
 
-```rs
+```go
 // ✅
-let name = actions_core::get_input("name")?;
-actions_core::info!("Hello, {name}!");
+name := try1(core.GetInput("name", nil))
+core.Notice(fmt.Sprintf("Hello, %s!", name))
 
 // 🐙🐱
-let token = actions_core::get_input("token")?;
-let octokit = actions_github::get_octokit(token)?;
+token := try1(core.GetInput("token", nil));
+client := try1(github.GetGoGithubClient(token, nil));
 let push = match *actions_github::CONTEXT.payload {
   WebhookPayload::Push(x) => x,
   _ => actions_core::set_failed!("🤷‍♂️"),

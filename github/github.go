@@ -16,7 +16,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func GetGoGithub(token string) (*gogithubgithub.Client, error) {
+func GetGoGithubClient(token string) (*gogithubgithub.Client, error) {
 	client := gogithubgithub.NewClient(nil)
 	if Context.ApiUrl != "https://api.github.com" {
 		var err error
@@ -29,7 +29,7 @@ func GetGoGithub(token string) (*gogithubgithub.Client, error) {
 	return client, nil
 }
 
-func GetGoSdk(token string) (*gosdkgithub.ApiClient, error) {
+func GetGoSdkApiClient(token string) (*gosdkgithub.ApiClient, error) {
 	provider := authentication.NewTokenProvider(
 		authentication.WithAuthorizationToken(token),
 		authentication.WithUserAgent("actions-toolkit.go/github"),
@@ -42,7 +42,7 @@ func GetGoSdk(token string) (*gosdkgithub.ApiClient, error) {
 	return apiClient, nil
 }
 
-func GetGithubV4(token string) *githubv4.Client {
+func GetGithubV4Client(token string) *githubv4.Client {
 	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	httpClient := oauth2.NewClient(context.Background(), src)
 	var client *githubv4.Client
