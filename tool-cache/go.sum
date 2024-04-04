@@ -2,3 +2,5 @@ github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/jcbhmr/actions-toolkit.go/core v0.0.0-20240403213716-a2dd2eac0fb0 h1:6Y+/ksCkUX+lCS0uycsqam/dhjETaFZTdTxceLGztGM=
 github.com/jcbhmr/actions-toolkit.go/core v0.0.0-20240403213716-a2dd2eac0fb0/go.mod h1:a8KpB0IftJH17docmYGVlilGZZsXJT/bINuYkA6pwbM=
+github.com/jcbhmr/actions-toolkit.go/core v0.0.0-20240404022858-fc4be8a8d3f4 h1:R1d3M/7yYh5v8FSX/GxBAT0Kyq7sFgjx+eLfBHO6SkU=
+github.com/jcbhmr/actions-toolkit.go/core v0.0.0-20240404022858-fc4be8a8d3f4/go.mod h1:a8KpB0IftJH17docmYGVlilGZZsXJT/bINuYkA6pwbM=
