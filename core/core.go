@@ -2,38 +2,48 @@ package core
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net/http"
 	"os"
-	"os/exec"
-	"runtime"
 	"slices"
 	"strings"
-	"text/template"
 
 	"github.com/google/uuid"
 )
 
+// Interface for getInput options
 type InputOptions struct {
-	Required       *bool
+	// Optional. Whether the input is required. If required and not present, will throw. Defaults to false
+	Required *bool
+	// Optional. Whether leading/trailing whitespace will be trimmed for the input. Defaults to true
 	TrimWhitespace *bool
 }
 
+// The code to exit an action
 type ExitCode int
 
 const (
-	Success ExitCode = 0
-	Failure ExitCode = 1
+	// A code indicating that the action was successful
+	ExitCodeSuccess ExitCode = 0
+	// A code indicating that the action was a failure
+	ExitCodeFailure ExitCode = 1
 )
 
+// Optional properties that can be sent with annotation commands (notice, error, and warning)
+// See: https://docs.github.com/en/rest/reference/checks#create-a-check-run for more information about annotations.
 type AnnotationProperties struct {
-	Title       *string
-	File        *string
-	StartLine   *int
-	EndLine     *int
+	// A title for the annotation.
+	Title *string
+	// The path of the file for which the annotation should be created.
+	File *string
+	// The start line for the annotation.
+	StartLine *int
+	// The end line for the annotation. Defaults to `startLine` when `startLine` is provided.
+	EndLine *int
+	// The start column for the annotation. Cannot be sent when `startLine` and `endLine` are different values.
 	StartColumn *int
-	EndColumn   *int
+	// The end column for the annotation. Cannot be sent when `startLine` and `endLine` are different values.
+	// Defaults to `startColumn` when `startColumn` is provided.
+	EndColumn *int
 }
 
 func encodeCommandProperty(property string) string {
@@ -57,9 +67,10 @@ func encodeCommandData(data string) string {
 }
 
 func toCommandString(value any) string {
-	switch value := value.(type) {
-	case nil:
+	if value == nil {
 		return ""
+	}
+	switch value := value.(type) {
 	case string:
 		return value
 	default:
@@ -71,6 +82,9 @@ func toCommandString(value any) string {
 	}
 }
 
+// Sets env variable for this action and future actions in the job
+// @param name the name of the variable to set
+// @param val the value of the variable. Non-string values will be converted to a string via JSON.stringify
 func ExportVariable(name string, value any) {
 	valueString := toCommandString(value)
 	githubEnv, ok := os.LookupEnv("GITHUB_ENV")
@@ -90,10 +104,14 @@ func ExportVariable(name string, value any) {
 	}
 }
 
+// Registers a secret which will get masked from logs
+// @param secret value of the secret
 func SetSecret(secret string) {
 	fmt.Printf("::add-mask::%s\n", encodeCommandData(secret))
 }
 
+// Prepends inputPath to the PATH (for this action and future actions)
+// @param inputPath
 func AddPath(inputPath string) {
 	githubPath, ok := os.LookupEnv("GITHUB_PATH")
 	if ok {
@@ -112,6 +130,13 @@ func AddPath(inputPath string) {
 	os.Setenv("PATH", fmt.Sprintf("%s%s%s", inputPath, string(os.PathListSeparator), os.Getenv("PATH")))
 }
 
+// Gets the value of an input.
+// Unless trimWhitespace is set to false in InputOptions, the value is also trimmed.
+// Returns an empty string if the value is not defined.
+//
+// @param     name     name of the input to get
+// @param     options  optional. See InputOptions.
+// @returns   string
 func GetInput(name string, options *InputOptions) (string, error) {
 	value := os.Getenv(fmt.Sprintf("INPUT_%s", strings.ReplaceAll(strings.ToUpper(name), " ", "_")))
 	required := options != nil && options.Required != nil && *options.Required
@@ -125,6 +150,11 @@ func GetInput(name string, options *InputOptions) (string, error) {
 	return value, nil
 }
 
+// Gets the values of an multiline input.  Each value is also trimmed.
+//
+// @param     name     name of the input to get
+// @param     options  optional. See InputOptions.
+// @returns   string[]
 func GetMultilineInput(name string, options *InputOptions) ([]string, error) {
 	value, err := GetInput(name, options)
 	if err != nil {
@@ -146,6 +176,14 @@ func GetMultilineInput(name string, options *InputOptions) ([]string, error) {
 	return lines2, nil
 }
 
+// Gets the input value of the boolean type in the YAML 1.2 "core schema" specification.
+// Support boolean input list: `true | True | TRUE | false | False | FALSE` .
+// The return value is also in boolean type.
+// ref: https://yaml.org/spec/1.2/spec.html#id2804923
+//
+// @param     name     name of the input to get
+// @param     options  optional. See InputOptions.
+// @returns   boolean
 func GetBooleanInput(name string, options *InputOptions) (bool, error) {
 	value, err := GetInput(name, options)
 	if err != nil {
@@ -160,6 +198,10 @@ func GetBooleanInput(name string, options *InputOptions) (bool, error) {
 	return false, fmt.Errorf("input does not meet YAML 1.2 \"Core Schema\" specification: %s\nSupport boolean input list: `true | True | TRUE | false | False | FALSE`", value)
 }
 
+// Sets the value of an output.
+//
+// @param     name     name of the output to set
+// @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
 func SetOutput(name string, value any) {
 	valueString := toCommandString(value)
 	githubOutput, ok := os.LookupEnv("GITHUB_OUTPUT")
@@ -179,6 +221,8 @@ func SetOutput(name string, value any) {
 	}
 }
 
+// Enables or disables the echoing of commands into stdout for the rest of the step.
+// Echoing is disabled by default if ACTIONS_STEP_DEBUG is not set.
 func SetCommandEcho(enabled bool) {
 	if enabled {
 		fmt.Println("::echo::on")
@@ -187,15 +231,21 @@ func SetCommandEcho(enabled bool) {
 	}
 }
 
+// Sets the action status to failed.
+// When the action exits it will be with an exit code of 1
+// @param message add error issue message
 func SetFailed(message any) {
 	Error(message, nil)
 	os.Exit(1)
 }
 
+// Gets whether Actions Step Debug is on or not
 func IsDebug() bool {
 	return os.Getenv("RUNNER_DEBUG") == "1"
 }
 
+// Writes debug message to user log
+// @param message debug message
 func Debug(message any) {
 	messageString := toCommandString(message)
 	fmt.Printf("::debug::%s\n", encodeCommandData(messageString))
@@ -224,6 +274,9 @@ func annotationPropertiesToCommandPropertiesString(properties AnnotationProperti
 	return strings.Join(parts, ",")
 }
 
+// Adds an error issue
+// @param message error issue message. Errors will be converted to string via toString()
+// @param properties optional properties to add to the annotation.
 func Error(message any, properties *AnnotationProperties) {
 	commandProperties := ""
 	if properties != nil {
@@ -242,6 +295,9 @@ func Error(message any, properties *AnnotationProperties) {
 	}
 }
 
+// Adds a warning issue
+// @param message warning issue message. Errors will be converted to string via toString()
+// @param properties optional properties to add to the annotation.
 func Warning(message any, properties *AnnotationProperties) {
 	commandProperties := ""
 	if properties != nil {
@@ -260,6 +316,9 @@ func Warning(message any, properties *AnnotationProperties) {
 	}
 }
 
+// Adds a notice issue
+// @param message notice issue message. Errors will be converted to string via toString()
+// @param properties optional properties to add to the annotation.
 func Notice(message any, properties *AnnotationProperties) {
 	commandProperties := ""
 	if properties != nil {
@@ -278,24 +337,53 @@ func Notice(message any, properties *AnnotationProperties) {
 	}
 }
 
+// Writes info to log with console.log.
+// @param message info message
 func Info(message string) {
 	fmt.Println(message)
 }
 
+// Begin an output group.
+// Output until the next `groupEnd` will be foldable in this group
+//
+// @param name The name of the output group
 func StartGroup(name string) {
 	fmt.Printf("::group::%s\n", encodeCommandData(name))
 }
 
+// End an output group.
 func EndGroup() {
 	fmt.Println("::endgroup::")
 }
 
+// Wrap an asynchronous function call in a group.
+//
+// Returns the same type as the function itself.
+//
+// @param name The name of the group
+// @param fn The function to wrap in the group
 func Group(name string, fn func()) {
 	StartGroup(name)
 	defer EndGroup()
 	fn()
 }
 
+func Group1[T any](name string, fn func() T) T {
+	StartGroup(name)
+	defer EndGroup()
+	return fn()
+}
+
+func Group2[T1 any, T2 any](name string, fn func() (T1, T2)) (T1, T2) {
+	StartGroup(name)
+	defer EndGroup()
+	return fn()
+}
+
+// Saves state for current action, the state can only be retrieved by this action's post job execution.
+//
+// @param     name     name of the state to store
+// @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
 func SaveState(name string, value any) {
 	valueString := toCommandString(value)
 	githubState, ok := os.LookupEnv("GITHUB_STATE")
@@ -315,381 +403,10 @@ func SaveState(name string, value any) {
 	}
 }
 
+// Gets the value of an state set by this action's main execution.
+//
+// @param     name     name of the state to get
+// @returns   string
 func GetState(name string) string {
 	return os.Getenv(fmt.Sprintf("STATE_%s", name))
-}
-
-type tokenResponse struct {
-	Value string
-}
-
-func GetIdToken(audience *string) (string, error) {
-	url, ok := os.LookupEnv("ACTIONS_ID_TOKEN_REQUEST_URL")
-	if !ok {
-		return "", errors.New("unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable")
-	}
-	if audience != nil {
-		url += fmt.Sprintf("&audience=%s", *audience)
-	}
-	res, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-	var target tokenResponse
-	err = json.NewDecoder(res.Body).Decode(&target)
-	if err != nil {
-		return "", err
-	}
-	return target.Value, nil
-}
-
-func ToPosixPath(path string) string {
-	return strings.ReplaceAll(path, "\\", "/")
-}
-
-func ToWin32Path(path string) string {
-	return strings.ReplaceAll(path, "/", "\\")
-}
-
-func ToPlatformPath(path string) string {
-	if runtime.GOOS == "windows" {
-		return ToWin32Path(path)
-	} else {
-		return ToPosixPath(path)
-	}
-}
-
-type summary struct {
-	buffer string
-	path   *string
-}
-
-func newSummary() *summary {
-	return &summary{
-		buffer: "",
-		path:   nil,
-	}
-}
-
-type SummaryWriteOptions struct {
-	Overwrite *bool
-}
-
-func (s *summary) Write(options *SummaryWriteOptions) (*summary, error) {
-	path := ""
-	if s.path == nil {
-		path = os.Getenv("GITHUB_STEP_SUMMARY")
-		s.path = &path
-	} else {
-		path = *s.path
-	}
-	overwrite := options != nil && options.Overwrite != nil && *options.Overwrite
-	if overwrite {
-		err := os.WriteFile(path, []byte(s.buffer), 0644)
-		if err != nil {
-			return s, err
-		}
-	} else {
-		file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return s, err
-		}
-		defer file.Close()
-		_, err = file.WriteString(s.buffer)
-		if err != nil {
-			return s, err
-		}
-	}
-	return s, nil
-}
-
-func (s *summary) Clear() (*summary, error) {
-	s.buffer = ""
-	_, err := s.Write(nil)
-	if err != nil {
-		return s, err
-	}
-	return s, nil
-}
-
-func (s *summary) Stringify() string {
-	return s.buffer
-}
-
-func (s *summary) IsEmptyBuffer() bool {
-	return s.buffer == ""
-}
-
-func (s *summary) EmptyBuffer() *summary {
-	s.buffer = ""
-	return s
-}
-
-func (s *summary) AddRaw(text string, addEol *bool) *summary {
-	s.buffer += text
-	addEol2 := addEol != nil && *addEol
-	if addEol2 {
-		s.buffer += "\n"
-	}
-	return s
-}
-
-func (s *summary) AddEol() *summary {
-	s.buffer += "\n"
-	return s
-}
-
-func (s *summary) AddCodeBlock(code string, lang *string) *summary {
-	lang2 := ""
-	if lang != nil {
-		lang2 = *lang
-	}
-	s.buffer += fmt.Sprintf("```%s\n%s\n```\n", lang2, code)
-	return s
-}
-
-func (s *summary) AddList(items []string, ordered *bool) *summary {
-	ordered2 := ordered != nil && *ordered
-	if ordered2 {
-		tmpl, err := template.New("list").Parse("<ol>{{range .}}<li>{{.}}</li>{{end}}</ol>")
-		if err != nil {
-			panic(err)
-		}
-		sb := strings.Builder{}
-		err = tmpl.Execute(&sb, items)
-		if err != nil {
-			panic(err)
-		}
-		s.buffer += sb.String()
-		s.buffer += "\n"
-		return s
-	} else {
-		tmpl, err := template.New("list").Parse("<ul>{{range .}}<li>{{.}}</li>{{end}}</ul>")
-		if err != nil {
-			panic(err)
-		}
-		sb := strings.Builder{}
-		err = tmpl.Execute(&sb, items)
-		if err != nil {
-			panic(err)
-		}
-		s.buffer += sb.String()
-		s.buffer += "\n"
-		return s
-	}
-}
-
-type SummaryTableCell struct {
-	Data    string
-	Header  *bool
-	Colspan *string
-	Rowspan *string
-}
-
-// Adds a `<table>` to the summary with the given rows. The `rows` parameter
-// is a `(string | SummaryTableCell)[]`. Each row is either a string or an
-// object with Data, Header, Colspan, and Rowspan properties.
-func (s *summary) AddTable(rows []any) *summary {
-	tmpl, err := template.New("table").Parse("<table>{{range .}}<tr>{{range .}}<td{{if .Header}} header{{end}}{{if .Colspan}} colspan={{.Colspan}}{{end}}{{if .Rowspan}} rowspan={{.Rowspan}}{{end}}>{{.Data}}</td>{{end}}</tr>{{end}}</table>")
-	if err != nil {
-		panic(err)
-	}
-	sb := strings.Builder{}
-	err = tmpl.Execute(&sb, rows)
-	if err != nil {
-		panic(err)
-	}
-	s.buffer += sb.String()
-	s.buffer += "\n"
-	return s
-}
-
-func (s *summary) AddDetails(label string, content string) *summary {
-	s.buffer += fmt.Sprintf("<details><summary>%s</summary>%s</details>\n", label, content)
-	return s
-}
-
-type SummaryImageOptions struct {
-	width  *string
-	height *string
-}
-
-func (s *summary) AddImage(src string, alt string, options *SummaryImageOptions) *summary {
-	tmpl, err := template.New("image").Parse("<img src=\"{{.Src}}\" alt=\"{{.Alt}}\"{{if .Width}} width=\"{{.Width}}\"{{end}}{{if .Height}} height=\"{{.Height}}\"{{end}}>\n")
-	if err != nil {
-		panic(err)
-	}
-	sb := strings.Builder{}
-	width := ""
-	if options != nil && options.width != nil {
-		width = *options.width
-	}
-	height := ""
-	if options != nil && options.height != nil {
-		height = *options.height
-	}
-	err = tmpl.Execute(&sb, map[string]string{
-		"Src":    src,
-		"Alt":    alt,
-		"Width":  width,
-		"Height": height,
-	})
-	if err != nil {
-		panic(err)
-	}
-	s.buffer += sb.String()
-	return s
-}
-
-func (s *summary) AddHeading(text string, level any) *summary {
-	hTag := "h1"
-	switch level := level.(type) {
-	case int:
-		if 1 <= level && level <= 6 {
-			hTag = fmt.Sprintf("h%d", level)
-		}
-	case string:
-		if slices.Contains([]string{"1", "2", "3", "4", "5", "6"}, level) {
-			hTag = fmt.Sprintf("h%s", level)
-		}
-	default:
-		panic("unexpected type")
-	}
-	s.buffer += fmt.Sprintf("<%s>%s</%s>\n", hTag, text, hTag)
-	return s
-}
-
-func (s *summary) AddSeparator() *summary {
-	s.buffer += "<hr>\n"
-	return s
-}
-
-func (s *summary) AddBreak() *summary {
-	s.buffer += "<br>\n"
-	return s
-}
-
-func (s *summary) AddQuote(text string, cite *string) *summary {
-	tmpl, err := template.New("quote").Parse("<blockquote {{if .Cite}}cite=\"{{.Cite}}\"{{end}}>{{.Text}}</blockquote>")
-	if err != nil {
-		panic(err)
-	}
-	sb := strings.Builder{}
-	cite2 := ""
-	if cite != nil {
-		cite2 = *cite
-	}
-	err = tmpl.Execute(&sb, map[string]string{
-		"Text": text,
-		"Cite": cite2,
-	})
-	if err != nil {
-		panic(err)
-	}
-	s.buffer += sb.String()
-	s.buffer += "\n"
-	return s
-}
-
-func (s *summary) AddLink(text string, href string) *summary {
-	s.buffer += fmt.Sprintf("<a href=\"%s\">%s</a>\n", href, text)
-	return s
-}
-
-var Summary = newSummary()
-var MarkdownSummary = Summary
-
-var Platform = platform{
-	Platform:  runtime.GOOS,
-	Arch:      runtime.GOARCH,
-	IsWindows: runtime.GOOS == "windows",
-	IsMacOs:   runtime.GOOS == "darwin",
-	IsLinux:   runtime.GOOS == "linux",
-}
-
-type platform struct {
-	Platform  string
-	Arch      string
-	IsWindows bool
-	IsMacOs   bool
-	IsLinux   bool
-}
-
-type platformDetails struct {
-	Name      string
-	Platform  string
-	Arch      string
-	Version   string
-	IsWindows bool
-	IsMacOs   bool
-	IsLinux   bool
-}
-
-func platformGetWindowsInfo() (string, string, error) {
-	version, err := exec.Command("powershell", "-command", "(Get-CimInstance -ClassName Win32_OperatingSystem).Version").Output()
-	if err != nil {
-		return "", "", err
-	}
-	versionStr := strings.TrimSpace(string(version))
-	name, err := exec.Command("powershell", "-command", "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption").Output()
-	if err != nil {
-		return "", "", err
-	}
-	nameStr := strings.TrimSpace(string(name))
-	return nameStr, versionStr, nil
-}
-
-func platformGetMacOsInfo() (string, string, error) {
-	version, err := exec.Command("sw_vers", "-productVersion").Output()
-	if err != nil {
-		return "", "", err
-	}
-	versionStr := strings.TrimSpace(string(version))
-	name, err := exec.Command("sw_vers", "-productName").Output()
-	if err != nil {
-		return "", "", err
-	}
-	nameStr := strings.TrimSpace(string(name))
-	return nameStr, versionStr, nil
-}
-
-func platformGetLinuxInfo() (string, string, error) {
-	name, err := exec.Command("lsb_release", "-is").Output()
-	if err != nil {
-		return "", "", err
-	}
-	nameStr := strings.TrimSpace(string(name))
-	version, err := exec.Command("lsb_release", "-rs").Output()
-	if err != nil {
-		return "", "", err
-	}
-	versionStr := strings.TrimSpace(string(version))
-	return nameStr, versionStr, nil
-}
-
-func (p *platform) GetDetails() (platformDetails, error) {
-	var name string
-	var version string
-	var err error
-	if Platform.IsWindows {
-		name, version, err = platformGetWindowsInfo()
-	} else if Platform.IsMacOs {
-		name, version, err = platformGetMacOsInfo()
-	} else if Platform.IsLinux {
-		name, version, err = platformGetLinuxInfo()
-	}
-	if err != nil {
-		return platformDetails{}, err
-	}
-	details := platformDetails{
-		Name:      name,
-		Version:   version,
-		Platform:  Platform.Platform,
-		Arch:      Platform.Arch,
-		IsWindows: Platform.IsWindows,
-		IsMacOs:   Platform.IsMacOs,
-		IsLinux:   Platform.IsLinux,
-	}
-	return details, nil
 }

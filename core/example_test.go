@@ -4,31 +4,28 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jcbhmr/actions-toolkit.go/core"
+	"github.com/jcbhmr/go-actions-toolkit/core"
 )
 
 func ptr[T any](v T) *T {
 	return &v
 }
 
-func unwrap1[T any](v T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-func catch(f func(any)) {
-	if err := recover(); err != nil {
-		f(err)
-	}
-}
-
 func Example() {
+	// Demo purposes only.
 	os.Setenv("INPUT_NAME", "Ada Lovelace")
-	defer catch(core.SetFailed)
-	name := unwrap1(core.GetInput("name", &core.InputOptions{Required: ptr(true)}))
-	favoriteColor := unwrap1(core.GetInput("favorite-color", nil))
+	// os.Setenv("INPUT_FAVORITE-COLOR", "blue")
+
+	defer func() {
+		if err := recover(); err != nil {
+			core.SetFailed(err)
+		}
+	}()
+	name, err := core.GetInput("name", &core.InputOptions{Required: ptr(true)})
+	if err != nil {
+		core.SetFailed(err)
+	}
+	favoriteColor, _ := core.GetInput("favorite-color", nil)
 	if favoriteColor == "" {
 		favoriteColor = "rainbow"
 	}
@@ -37,19 +34,19 @@ func Example() {
 }
 
 func ExampleGetInput() {
+	// Demo purposes only.
 	os.Setenv("INPUT_NAME", "Alan Turing")
-	name := unwrap1(core.GetInput("name", &core.InputOptions{Required: ptr(true)}))
-	fmt.Printf("Hello %s!", name)
+
+	name, err := core.GetInput("name", &core.InputOptions{Required: ptr(true)})
+	if err != nil {
+		core.SetFailed(err)
+	}
+	fmt.Printf("Hello %s!\n", name)
 	// Output: Hello Alan Turing!
 }
 
 func ExampleSetOutput() {
+	// Will use `GITHUB_OUTPUT` path if set.
 	core.SetOutput("message", "Hello world!")
 	// Output: ::set-output name=message::Hello world!
-}
-
-func ExampleSetFailed() {
-	defer catch(core.SetFailed)
-	path := unwrap1(core.GetInput("path", &core.InputOptions{Required: ptr(true)}))
-	fmt.Printf("Reading %s...\n", path)
 }
