@@ -5,31 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jcbhmr/actions-toolkit.go/github"
+	"github.com/jcbhmr/go-actions-toolkit/github"
 )
-
-func unwrap1[A any](a A, err error) A {
-	if err != nil {
-		panic(err)
-	}
-	return a
-}
-
-func unwrap2[A, B any](a A, b B, err error) (A, B) {
-	if err != nil {
-		panic(err)
-	}
-	return a, b
-}
-
-func init() {
-	if _, ok := os.LookupEnv("GITHUB_TOKEN"); !ok {
-		panic("no GITHUB_TOKEN")
-	}
-	if _, ok := os.LookupEnv("GITHUB_REPOSITORY"); !ok {
-		panic("no GITHUB_REPOSITORY")
-	}
-}
 
 func Example() {
 	token := os.Getenv("GITHUB_TOKEN")

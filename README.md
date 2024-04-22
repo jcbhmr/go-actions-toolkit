@@ -1,15 +1,15 @@
 ![🚧 Under construction 👷‍♂️](https://i.imgur.com/LEP2R3N.png)
 
-- [x] Create actions-toolkit.go
-- [x] ⭐ github.com/jcbhmr/actions-toolkit.go/core
-- [ ] 🤢 github.com/jcbhmr/actions-toolkit.go/exec
-- [ ] github.com/jcbhmr/actions-toolkit.go/glob
-- [ ] 🤢 github.com/jcbhmr/actions-toolkit.go/http-client
-- [ ] 🤢 github.com/jcbhmr/actions-toolkit.go/io
-- [ ] ⭐ github.com/jcbhmr/actions-toolkit.go/tool-cache
-- [x] ⭐ github.com/jcbhmr/actions-toolkit.go/github
-- [ ] github.com/jcbhmr/actions-toolkit.go/artifact
-- [ ] github.com/jcbhmr/actions-toolkit.go/cache
+- [x] Create go-actions-toolkit
+- [x] ⭐ github.com/jcbhmr/go-actions-toolkit/core
+- [ ] 🤢 github.com/jcbhmr/go-actions-toolkit/exec
+- [ ] github.com/jcbhmr/go-actions-toolkit/glob
+- [ ] 🤢 github.com/jcbhmr/go-actions-toolkit/http-client
+- [ ] 🤢 github.com/jcbhmr/go-actions-toolkit/io
+- [ ] ⭐ github.com/jcbhmr/go-actions-toolkit/tool-cache
+- [x] ⭐ github.com/jcbhmr/go-actions-toolkit/github
+- [ ] github.com/jcbhmr/go-actions-toolkit/artifact
+- [ ] github.com/jcbhmr/go-actions-toolkit/cache
 - [ ] [configure-executable-action](https://github.com/jcbhmr/configure-executable-action)
 - [ ] [configure-wasmtime-action](https://github.com/jcbhmr/configure-wasmtime-action)
 - [ ] [hello-world-go-action](https://github.com/jcbhmr/hello-world-go-action)

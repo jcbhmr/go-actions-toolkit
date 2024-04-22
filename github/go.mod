@@ -1,4 +1,4 @@
-module github.com/jcbhmr/actions-toolkit.go/github
+module github.com/jcbhmr/go-actions-toolkit/github
 
 go 1.22.1
 
